@@ -1,3 +1,5 @@
+from collections import OrderedDict
+from datetime import datetime, timedelta
 from flask import Flask, request, render_template
 import requests
 
@@ -5,59 +7,88 @@ app = Flask(__name__)
 
 
 @app.route('/')
-def hello_world():
+def italy():
+    r = requests.get(
+        'https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-andamento-nazionale.json'
+    )
+    parsed_json = r.json()
+    struct = {}
+    for j in parsed_json:
+        struct[j['data'][0:10]] = {}
+        today_obj = datetime.strptime(j['data'][0:10], '%Y-%m-%d')
+        today = today_obj.strftime('%Y-%m-%d')
+        yesterday_obj = today_obj - timedelta(days=1)
+        yesterday = yesterday_obj.strftime('%Y-%m-%d')
+        struct[today]['diff'] = {}
+        for val, key in enumerate(j):
+            if (
+                key != 'data' and key != 'denominazione_regione' and key != 'note_it' and key != 'note_en' and
+                key != 'codice_regione' and key != 'stato' and key != 'lat' and key != 'long'
+            ):
+                struct[today][key] = j[key]
+                if yesterday in struct:
+                    if (struct[today][key] is not None) and (struct[yesterday][key] is not None):
+                        struct[today]['diff'][key] = struct[today][key] - struct[yesterday][key]
+    return render_template('italy.html', body=OrderedDict(sorted(struct.items(), reverse=True)))
+
+
+@app.route('/regions')
+def regions():
     r = requests.get(
         'https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json'
     )
     regione = request.args.get('regione')
-    app.logger.error("REGIONE: " + str(regione))
     parsed_json = r.json()
-    menu_html = '<nav class="nav nav-pills mb-2">';
-    menu_html += '<a class="nav-link" href="/">Home</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=1">Piemonte</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=2">Valle d\'Aosta</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=3">Lombardia</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=4">Trentino</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=5">Veneto</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=6">Friuli Venezia Giulia</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=7">Liguria</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=8">Emilia Romangna</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=9">Toscana</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=10">Umbria</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=11">Marche</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=12">Lazio</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=13">Abruzzo</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=14">Molise</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=15">Campania</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=16">Puglia</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=17">Basilicata</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=18">Calabria</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=19">Sicilia</a>&nbsp;'
-    menu_html += '<a class="nav-link" href="/?regione=20">Sardegna</a>&nbsp;'
-    menu_html += '<nav/>'
-    body_html = ''
+    struct = {}
     old_date = ""
-    for j in parsed_json[::-1]:
+    for j in parsed_json:
         if old_date != j['data'][0:10]:
-            body_html += "<h2 class=\"mt-4\">" + j['data'][0:10] + "</h2>"
-            old_date = j['data'][0:10]
-        tmp_body_html = ''
-        if regione is None:
-            tmp_body_html += "<h3 class=\"mt-3\">" + j['denominazione_regione'] + "</h3>"
-        tmp_body_html += '<ul class="list-group mt-3">'
-        for val, key in enumerate(j):
-            if (
-                key != 'data' and key != 'denominazione_regione' and
-                key != 'codice_regione' and key != 'stato' and key != 'lat' and key != 'long'
-            ):
-                tmp_body_html += '<li class="list-group-item d-flex justify-content-between align-items-center">'
-                tmp_body_html += key + '<span class="badge badge-primary badge-pill">' + str(j[key]) + '</span>'
-                tmp_body_html += '</li>';
-        tmp_body_html += '</ul>'
-        if regione is None:
-            body_html += tmp_body_html
-        else:
-            if regione is not None and regione == str(j['codice_regione']):
-                body_html += tmp_body_html
-    body_html += '<hr/><a href="https://github.com/pcm-dpc/COVID-19" target="_self">Dati forniti dal Dipartimento della Protezione Civile</a>'
-    return render_template('index.html', body=body_html, menu=menu_html)
+            today_obj = datetime.strptime(j['data'][0:10], '%Y-%m-%d')
+            today = today_obj.strftime('%Y-%m-%d')
+            yesterday_obj = today_obj - timedelta(days=1)
+            yesterday = yesterday_obj.strftime('%Y-%m-%d')
+            struct[today] = {}
+            old_date = today
+        actual_region = j['denominazione_regione']
+        if regione == str(j['codice_regione']) or regione is None:
+            struct[today][actual_region] = {}
+            struct[today][actual_region]['diff'] = {}
+            for val, key in enumerate(j):
+                if (
+                    key != 'data' and key != 'denominazione_regione' and key != 'note_it' and key != 'note_en' and
+                    key != 'codice_regione' and key != 'stato' and key != 'lat' and key != 'long'
+                ):
+                    struct[today][actual_region][key] = j[key]
+                    if yesterday in struct:
+                        if key in struct[yesterday][actual_region]:
+                            if (struct[today][actual_region][key] is not None) and (struct[yesterday][actual_region][key] is not None):
+                                struct[today][actual_region]['diff'][key] = struct[today][actual_region][key] - \
+                                    struct[yesterday][actual_region][key]
+    return render_template('regions.html', body=OrderedDict(sorted(struct.items(), reverse=True)))
+
+
+@app.route('/provinces')
+def province():
+    province = request.args.get('province')
+    struct = {}
+    if province is not None:
+        r = requests.get(
+            'https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-province.json'
+        )
+        parsed_json = r.json()
+        province = province.capitalize()
+        for j in parsed_json:
+            if j['denominazione_provincia'] == province:
+                struct[j['data'][0:10]] = {}
+                today_obj = datetime.strptime(j['data'][0:10], '%Y-%m-%d')
+                today = today_obj.strftime('%Y-%m-%d')
+                yesterday_obj = today_obj - timedelta(days=1)
+                yesterday = yesterday_obj.strftime('%Y-%m-%d')
+                struct[today]['diff'] = {}
+                key = 'totale_casi'
+                struct[today][key] = j[key]
+                if yesterday in struct:
+                    if (struct[today][key] is not None) and (struct[yesterday][key] is not None):
+                        struct[today]['diff'][key] = struct[today][key] - \
+                            struct[yesterday][key]
+    return render_template('province.html', body=OrderedDict(sorted(struct.items(), reverse=True)), province=province)
