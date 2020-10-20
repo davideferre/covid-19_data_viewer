@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 import requests
 
 app = Flask(__name__)
@@ -8,6 +8,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def italy():
+    output_format = request.args.get('format', default='html')
     r = requests.get(
         'https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-andamento-nazionale.json'
     )
@@ -28,12 +29,18 @@ def italy():
                 struct[today][key] = j[key]
                 if yesterday in struct:
                     if (struct[today][key] is not None) and (struct[yesterday][key] is not None):
-                        struct[today]['diff'][key] = struct[today][key] - struct[yesterday][key]
+                        try:
+                            struct[today]['diff'][key] = struct[today][key] - struct[yesterday][key]
+                        except:
+                            struct[today]['diff'][key] = 0
+    if output_format == 'json':
+        return jsonify(OrderedDict(sorted(struct.items(), reverse=True)))
     return render_template('italy.html', body=OrderedDict(sorted(struct.items(), reverse=True)))
 
 
 @app.route('/regions')
 def regions():
+    output_format = request.args.get('format', default='html')
     r = requests.get(
         'https://raw.githubusercontent.com/pcm-dpc/COVID-19/master/dati-json/dpc-covid19-ita-regioni.json'
     )
@@ -62,13 +69,19 @@ def regions():
                     if yesterday in struct:
                         if key in struct[yesterday][actual_region]:
                             if (struct[today][actual_region][key] is not None) and (struct[yesterday][actual_region][key] is not None):
-                                struct[today][actual_region]['diff'][key] = struct[today][actual_region][key] - \
-                                    struct[yesterday][actual_region][key]
+                                try:
+                                    struct[today][actual_region]['diff'][key] = struct[today][actual_region][key] - \
+                                        struct[yesterday][actual_region][key]
+                                except:
+                                    struct[today][actual_region]['diff'][key] = 0
+    if output_format == 'json':
+        return jsonify(OrderedDict(sorted(struct.items(), reverse=True)))
     return render_template('regions.html', body=OrderedDict(sorted(struct.items(), reverse=True)))
 
 
 @app.route('/provinces')
 def province():
+    output_format = request.args.get('format', default='html')
     province = request.args.get('province')
     struct = {}
     if province is not None:
@@ -89,6 +102,11 @@ def province():
                 struct[today][key] = j[key]
                 if yesterday in struct:
                     if (struct[today][key] is not None) and (struct[yesterday][key] is not None):
-                        struct[today]['diff'][key] = struct[today][key] - \
-                            struct[yesterday][key]
+                        try:
+                            struct[today]['diff'][key] = struct[today][key] - \
+                                struct[yesterday][key]
+                        except:
+                            struct[today]['diff'][key] = 0
+    if output_format == 'json':
+        return jsonify(OrderedDict(sorted(struct.items(), reverse=True)))
     return render_template('province.html', body=OrderedDict(sorted(struct.items(), reverse=True)), province=province)

@@ -15,35 +15,147 @@
 {% endblock %}
 
 {% block content%}
-    {% for key, val in body.items() %}
-        <h2 class="mt-4">{{key}}</h2>
-        <ul class="list-group mt-3">
-            {% for item, item_val in val.items() %}
-            {% if item != 'diff' %}
-            <li class="list-group-item">
-                <div class="row">
-                    <div class="col-6 col-md-10 data-key">
-                        <span title="{{item}}">{{item}}</span>
-                    </div>
-                    <div class="col-3 col-md-1 text-right data-diff">
-                        {% if 'diff' in val %}
-                        {% if item in val['diff'] %}
-                        <span>{{val['diff'][item]}}</span>
-                        {% if val['diff'][item] > 0 %}
-                        <i class="fas fa-angle-double-up text-danger"></i>
-                        {% else %}
-                        <i class="fas fa-angle-double-down text-success"></i>
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-6 col-lg-4">
+            <canvas id="nuoviCasi" width="400" height="400"></canvas>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <canvas id="terapieIntensive" width="400" height="400"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            {% for key, val in body.items() %}
+                <h2 class="mt-4">{{key}}</h2>
+                <ul class="list-group mt-3">
+                    {% for item, item_val in val.items() %}
+                        {% if item != 'diff' %}
+                        <li class="list-group-item">
+                            <div class="row">
+                                <div class="col-6 col-md-10 data-key">
+                                    <span title="{{item}}">{{item}}</span>
+                                </div>
+                                <div class="col-3 col-md-1 text-right data-diff">
+                                    {% if 'diff' in val %}
+                                    {% if item in val['diff'] %}
+                                    <span>{{val['diff'][item]}}</span>
+                                    {% if val['diff'][item] > 0 %}
+                                    <i class="fas fa-angle-double-up text-danger"></i>
+                                    {% else %}
+                                    <i class="fas fa-angle-double-down text-success"></i>
+                                    {% endif %}
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                                <div class="col-3 col-md-1 text-right data-value">
+                                    <span class="badge badge-primary badge-pill">{{item_val}}</span>
+                                </div>
+                            </div>
+                        </li>
                         {% endif %}
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                    <div class="col-3 col-md-1 text-right data-value">
-                        <span class="badge badge-primary badge-pill">{{item_val}}</span>
-                    </div>
-                </div>
-            </li>
-            {% endif %}
+                    {% endfor %}
+                </ul>
             {% endfor %}
-        </ul>
-    {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script>
+        let labels = [
+            {% for key, val in body.items() %}
+                new Date('{{key}}'),
+            {% endfor %}
+        ];
+        let nuoviCasiCTX = document.getElementById('nuoviCasi');
+        let dataNuoviPositivi = [
+            {% for key, val in body.items() %}
+                {x: new Date('{{key}}'), y: parseInt("{{val['nuovi_positivi']}}") },
+            {% endfor %}
+        ];
+        let nuoviCasiChart = new Chart(nuoviCasiCTX, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Nuovi positivi',
+                    data: dataNuoviPositivi,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: false
+                        }
+                    }],
+                    xAxes: [{
+                        ticks: {
+                            beginAtZero: false,
+                            source: 'auto'
+                        },
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'DD/MM/YYYY',
+                            displayFormats: {
+                                minute: 'HH:mm',
+                                hour: 'HH:00',
+                                day: 'DD/MM',
+                                week: 'DD/MM'
+                            }
+                        }
+                    }]
+                }
+            }
+        });
+        let terapieIntensiveCTX = document.getElementById('terapieIntensive');
+        let dataTerapieIntensive = [
+            {% for key, val in body.items() %}
+                {x: new Date('{{key}}'), y: parseInt("{{val['terapia_intensiva']}}") },
+            {% endfor %}
+        ];
+        let terapieIntensiveChart = new Chart(terapieIntensiveCTX, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Terapie intensive',
+                    data: dataTerapieIntensive,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255,99,132,1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: false
+                        }
+                    }],
+                    xAxes: [{
+                        ticks: {
+                            beginAtZero: false,
+                            source: 'auto'
+                        },
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'DD/MM/YYYY',
+                            displayFormats: {
+                                minute: 'HH:mm',
+                                hour: 'HH:00',
+                                day: 'DD/MM',
+                                week: 'DD/MM'
+                            }
+                        }
+                    }]
+                }
+            }
+        });
+    </script>
 {% endblock %}
